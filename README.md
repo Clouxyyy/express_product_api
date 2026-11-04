@@ -1,6 +1,6 @@
-# Tugas: API Daftar Produk (ExpressJS)
+# ExpressJS Product REST API with Prisma ORM
 
-REST API sederhana untuk mengelola daftar produk yang dibangun menggunakan **Express.js**. Data produk disimpan sementara di dalam memory (in-memory array).
+REST API sederhana untuk manajemen produk yang dibangun menggunakan **Express.js**, **Prisma ORM**, dan database **SQLite**.
 
 ---
 
@@ -9,18 +9,17 @@ REST API sederhana untuk mengelola daftar produk yang dibangun menggunakan **Exp
 ```text
 chall_expressjs/
 ├── controllers/
-│   └── productController.js   # Logika bisnis dan penanganan request
-├── data/
-│   └── products.js            # Penyimpanan data awal (in-memory mock data)
+│   └── productController.js   # Logika CRUD dan validasi dengan Prisma
+├── prisma/
+│   ├── migrations/            # Histori migrasi database
+│   ├── schema.prisma          # Definisi model Product dan database SQLite
+│   └── seed.js                # Data awal (seeder) database
 ├── routes/
-│   └── productRoutes.js       # Definisi endpoint routing produk
-├── screenshot/                # Bukti hasil pengujian API
-│   ├── 1_get_all_products.png
-│   ├── 2_get_product_id.png
-│   ├── 3_get_404.png
-│   └── 4_post_product.png
-├── app.js                     # Entry point aplikasi Express
+│   └── productRoutes.js       # Definisi rute API produk (GET, POST, PUT, DELETE)
+├── screenshot/                # Bukti hasil pengujian API & Database
+├── app.js                     # Entry point server Express
 ├── package.json               # Konfigurasi dependensi dan scripts
+├── .env.example               # Contoh variabel lingkungan
 └── README.md                  # Dokumentasi proyek
 ```
 
@@ -28,13 +27,17 @@ chall_expressjs/
 
 ## 🚀 Petunjuk Menjalankan
 
-1. **Pastikan Node.js sudah terinstal** (versi 18+ disarankan).
-2. **Buka terminal** di folder proyek ini.
-3. **Instal dependensi:**
+1. **Instal dependensi:**
    ```bash
    npm install
    ```
-4. **Jalankan server:**
+
+2. **Jalankan migrasi database & seeding awal:**
+   ```bash
+   npm run db:migrate
+   ```
+
+3. **Jalankan server:**
    - Mode standar:
      ```bash
      npm start
@@ -43,88 +46,104 @@ chall_expressjs/
      ```bash
      npm run dev
      ```
-5. Server akan aktif di `http://localhost:3000`.
+   Server aktif pada: `http://localhost:3000`
+
+4. **Membuka Prisma Studio (Database GUI Visual):**
+   ```bash
+   npm run studio
+   ```
+   Buka browser pada alamat: `http://localhost:5555`
 
 ---
 
-## 📌 Daftar Endpoint
+## 📌 Daftar Endpoint API
 
-| Method | Endpoint | Status Code | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/products` | `200 OK` | Mengambil seluruh data produk |
-| **GET** | `/products/:id` | `200 OK` / `404 Not Found` | Mengambil detail produk berdasarkan ID |
-| **POST** | `/products` | `201 Created` / `400 Bad Request` | Menambahkan produk baru ke dalam daftar |
+| Method | Endpoint | Body Request | Status Code | Deskripsi |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/products` | - | `200 OK` | Mengambil seluruh data produk |
+| **GET** | `/products/:id` | - | `200 OK` / `404 Not Found` | Mengambil detail produk berdasarkan ID |
+| **POST** | `/products` | `{ "name": "string", "price": number }` | `201 Created` / `400 Bad Request` | Menambahkan produk baru |
+| **PUT** | `/products` | `{ "id": number, "name": "string", "price": number }` | `200 OK` / `400 Bad Request` / `404 Not Found` | Memperbarui produk yang sudah ada |
+| **DELETE** | `/products/:id` | - | `200 OK` / `400 Bad Request` / `404 Not Found` | Menghapus produk berdasarkan ID |
 
 ---
 
 ## 🧪 Contoh Pengujian (cURL)
 
-### 1. Mengambil Semua Produk
+### 1. GET Semua Produk
 ```bash
 curl -i http://localhost:3000/products
 ```
-**Response (200 OK):**
-```json
-[
-  { "id": 1, "name": "Buku", "price": 15000 },
-  { "id": 2, "name": "Pulpen", "price": 5000 }
-]
-```
 
-### 2. Mengambil Produk Berdasarkan ID
+### 2. GET Produk Berdasarkan ID
 ```bash
 curl -i http://localhost:3000/products/1
 ```
-**Response (200 OK):**
-```json
-{ "id": 1, "name": "Buku", "price": 15000 }
-```
 
-### 3. Mengambil Produk yang Tidak Ada
-```bash
-curl -i http://localhost:3000/products/999
-```
-**Response (404 Not Found):**
-```json
-{ "message": "Produk tidak ditemukan" }
-```
-
-### 4. Menambahkan Produk Baru
+### 3. POST Tambah Produk Baru
 ```bash
 curl -i -X POST http://localhost:3000/products \
   -H "Content-Type: application/json" \
-  -d '{"name": "Pensil", "price": 3000}'
-```
-**Response (201 Created):**
-```json
-{ "id": 3, "name": "Pensil", "price": 3000 }
+  -d '{"name": "Penghapus", "price": 2000}'
 ```
 
-### 5. Validasi Input Cacat (Bad Request)
+### 4. PUT Update Produk (Body dengan ID)
+```bash
+curl -i -X PUT http://localhost:3000/products \
+  -H "Content-Type: application/json" \
+  -d '{"id": 1, "name": "Buku Tulis Premium", "price": 20000}'
+```
+
+### 5. DELETE Hapus Produk
+```bash
+curl -i -X DELETE http://localhost:3000/products/2
+```
+
+### 6. Skenario Validasi Error (400 Bad Request)
 ```bash
 curl -i -X POST http://localhost:3000/products \
   -H "Content-Type: application/json" \
-  -d '{"name": ""}'
-```
-**Response (400 Bad Request):**
-```json
-{ "message": "Nama dan harga produk wajib diisi" }
+  -d '{"name": "", "price": -500}'
 ```
 
 ---
 
-## 📸 Bukti Pengujian
+## 📸 Laporan Evidence (Hasil Pengujian)
 
-### 1. GET `/products` (Semua Produk)
-![1. Get All Products](screenshot/1_get_all_products.png)
+### 1. Skenario POST (Tambah Data)
+- **Database Sebelum POST (Prisma Studio):**
+  ![Database Sebelum POST](screenshot/01_db_before_post.png)
+- **Request POST di Postman (201 Created):**
+  ![Postman POST](screenshot/02_postman_post.png)
+- **Database Sesudah POST (Prisma Studio - Data Bertambah):**
+  ![Database Sesudah POST](screenshot/03_db_after_post.png)
 
-### 2. GET `/products/:id` (Produk Ditemukan)
-![2. Get Product By ID](screenshot/2_get_product_id.png)
+---
 
-### 3. GET `/products/:id` (Produk Tidak Ditemukan - 404)
-![3. Get Product 404](screenshot/3_get_404.png)
+### 2. Skenario PUT (Update Data)
+- **Request PUT di Postman (200 OK):**
+  ![Postman PUT](screenshot/04_postman_put.png)
+- **Database Sesudah PUT (Prisma Studio - Data Terupdate):**
+  ![Database Sesudah PUT](screenshot/05_db_after_put.png)
 
-### 4. POST `/products` (Tambah Produk - 201)
-![4. Post Product](screenshot/4_post_product.png)
-# express_product_api
-# express_product_api
+---
+
+### 3. Skenario GET (Tampilkan Seluruh Data)
+- **Request GET All di Postman (200 OK):**
+  ![Postman GET All](screenshot/06_postman_get_all.png)
+
+---
+
+### 4. Skenario DELETE (Hapus Data)
+- **Request DELETE di Postman (200 OK):**
+  ![Postman DELETE](screenshot/07_postman_delete.png)
+- **Database Sesudah DELETE (Prisma Studio - Data Terhapus):**
+  ![Database Sesudah DELETE](screenshot/08_db_after_delete.png)
+
+---
+
+### 5. Skenario Validasi Error & Not Found
+- **Kesalahan Validasi Input (400 Bad Request):**
+  ![Postman 400 Validation Error](screenshot/09_postman_400_validation_error.png)
+- **Endpoint / Data Tidak Ditemukan (404 Not Found):**
+  ![Postman 404 Not Found](screenshot/10_postman_404_not_found.png)
