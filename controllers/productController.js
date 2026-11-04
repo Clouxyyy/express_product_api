@@ -1,36 +1,81 @@
-const products = require("../data/products");
+const { PrismaClient } = require("@prisma/client");
 
-const getAllProducts = (req, res) => {
-    return res.status(200).json(products);
+const prisma = new PrismaClient();
+
+// Helper untuk parsing dan validasi ID (bilangan bulat positif)
+const parseId = (value) => {
+    const id = Number(value);
+    return Number.isInteger(id) && id > 0 ? id : null;
 };
 
-const getProductById = (req, res) => {
-    const id = parseInt(req.params.id, 10);
-    const product = products.find(p => p.id === id);
-
-    if (!product) {
-        return res.status(404).json({ message: "Produk tidak ditemukan" });
-    }
-    return res.status(200).json(product);
-};
-
-const createProduct = (req, res) => {
-    const { name, price } = req.body;
-
-    // Validasi input: nama harus terisi dan harga harus berupa angka valid
-    if (!name || price === undefined || price === null || isNaN(Number(price))) {
-        return res.status(400).json({ message: "Nama dan harga produk wajib diisi" });
+// Helper untuk validasi body produk
+const validateProduct = (body) => {
+    if (!body || typeof body.name !== "string" || body.name.trim() === "") {
+        return "name wajib diisi";
     }
 
-    const newId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
-    const newProduct = {
-        id: newId,
-        name: typeof name === "string" ? name.trim() : name,
-        price: Number(price)
-    };
-    
-    products.push(newProduct);
-    return res.status(201).json(newProduct);
+    const price = Number(body.price);
+    if (!Number.isInteger(price) || price < 0) {
+        return "price wajib berupa bilangan bulat minimal 0";
+    }
+
+    return null;
 };
 
-module.exports = { getAllProducts, getProductById, createProduct };
+// GET: Menampilkan seluruh data produk
+const getAllProducts = async (req, res) => {
+    try {
+        const products = await prisma.product.findMany({
+            orderBy: { id: "asc" },
+        });
+        return res.status(200).json(products);
+    } catch (error) {
+        return res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
+    }
+};
+
+// GET /:id: Menampilkan detail produk berdasarkan ID
+const getProductById = async (req, res) => {
+    try {
+        const id = parseId(req.params.id);
+        if (id === null) {
+            return res.status(400).json({ message: "id tidak valid" });
+        }
+
+        const product = await prisma.product.findUnique({ where: { id } });
+        if (!product) {
+            return res.status(404).json({ message: "produk tidak ditemukan" });
+        }
+
+        return res.status(200).json(product);
+    } catch (error) {
+        return res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
+    }
+};
+
+// POST: Membuat data produk baru
+const createProduct = async (req, res) => {
+    try {
+        const error = validateProduct(req.body);
+        if (error) {
+            return res.status(400).json({ message: error });
+        }
+
+        const product = await prisma.product.create({
+            data: {
+                name: req.body.name.trim(),
+                price: Number(req.body.price),
+            },
+        });
+
+        return res.status(201).json(product);
+    } catch (error) {
+        return res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
+    }
+};
+
+module.exports = {
+    getAllProducts,
+    getProductById,
+    createProduct,
+};
