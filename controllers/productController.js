@@ -108,9 +108,30 @@ const updateProduct = async (req, res) => {
     }
 };
 
+// DELETE /:id: Menghapus data produk berdasarkan ID
+const deleteProduct = async (req, res) => {
+    try {
+        const id = parseId(req.params.id);
+        if (id === null) {
+            return res.status(400).json({ message: "id tidak valid" });
+        }
+
+        const existingProduct = await prisma.product.findUnique({ where: { id } });
+        if (!existingProduct) {
+            return res.status(404).json({ message: "produk tidak ditemukan" });
+        }
+
+        await prisma.product.delete({ where: { id } });
+        return res.status(200).json({ message: "produk berhasil dihapus" });
+    } catch (error) {
+        return res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
+    }
+};
+
 module.exports = {
     getAllProducts,
     getProductById,
     createProduct,
     updateProduct,
+    deleteProduct,
 };
