@@ -74,8 +74,43 @@ const createProduct = async (req, res) => {
     }
 };
 
+// PUT: Mengupdate data yang sudah ada (mendukung id via body atau url param)
+const updateProduct = async (req, res) => {
+    try {
+        const rawId = req.body && req.body.id !== undefined ? req.body.id : req.params.id;
+        const id = parseId(rawId);
+
+        if (id === null) {
+            return res.status(400).json({ message: "id tidak valid" });
+        }
+
+        const error = validateProduct(req.body);
+        if (error) {
+            return res.status(400).json({ message: error });
+        }
+
+        const existingProduct = await prisma.product.findUnique({ where: { id } });
+        if (!existingProduct) {
+            return res.status(404).json({ message: "produk tidak ditemukan" });
+        }
+
+        const updated = await prisma.product.update({
+            where: { id },
+            data: {
+                name: req.body.name.trim(),
+                price: Number(req.body.price),
+            },
+        });
+
+        return res.status(200).json(updated);
+    } catch (error) {
+        return res.status(500).json({ message: "Terjadi kesalahan pada server", error: error.message });
+    }
+};
+
 module.exports = {
     getAllProducts,
     getProductById,
     createProduct,
+    updateProduct,
 };
