@@ -1,0 +1,13 @@
+$kind: http-request
+name: http://localhost:3000/products
+description: ""
+url: http://localhost:3000/products
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "name": "Penghapus",
+      "price": 3000
+    }
+order: 1000
